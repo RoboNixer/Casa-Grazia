@@ -3,6 +3,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import {
+  notifyAdminBookingCreated,
+  notifyBookingStatusChanged,
+} from '@/lib/email/notifications';
 import type {
   Booking,
   BlockedDate,
@@ -85,6 +89,10 @@ export async function calCreateBooking(input: {
 
   if (error || !data) return { ok: false, error: error?.message || 'Greška' };
 
+  // Confirm to the guest that we created the booking on their behalf. Silent
+  // no-op if no email was provided. Errors are swallowed inside the helper.
+  await notifyAdminBookingCreated(data as Booking);
+
   revalidatePath('/admin');
   revalidatePath('/admin/bookings');
   revalidatePath('/admin/calendar');
@@ -107,6 +115,18 @@ export async function calUpdateBooking(input: {
 }): Promise<CalendarMutationResult<Booking>> {
   const supabase = await requireAdmin();
   if (!input.id) return { ok: false, error: 'Nedostaje ID' };
+
+  // Snapshot the previous status before we mutate, so we can detect a real
+  // status transition and only email the guest when something changed.
+  let prevStatus: BookingStatus | undefined;
+  if (input.status !== undefined) {
+    const { data: before } = await supabase
+      .from('bookings')
+      .select('status')
+      .eq('id', input.id)
+      .maybeSingle();
+    prevStatus = (before?.status as BookingStatus) || undefined;
+  }
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.status        !== undefined) update.status        = input.status;
@@ -151,6 +171,12 @@ export async function calUpdateBooking(input: {
 
   if (error || !data) return { ok: false, error: error?.message || 'Greška' };
 
+  // Email the guest only when the status actually changed (e.g. pending →
+  // confirmed). The helper itself is a no-op when prev === current.
+  if (prevStatus && (data as Booking).status !== prevStatus) {
+    await notifyBookingStatusChanged(data as Booking, prevStatus);
+  }
+
   revalidatePath('/admin');
   revalidatePath('/admin/bookings');
   revalidatePath('/admin/calendar');
@@ -162,8 +188,28 @@ export async function calUpdateBooking(input: {
 export async function calDeleteBooking(id: string): Promise<CalendarMutationResult<{ id: string }>> {
   const supabase = await requireAdmin();
   if (!id) return { ok: false, error: 'Nedostaje ID' };
+
+  // Pull the row + joined property BEFORE deleting so we can email the guest a
+  // cancellation notice. We also need the previous status for the transition
+  // arrow in the email body.
+  const { data: doomed } = await supabase
+    .from('bookings')
+    .select('*, property:properties(*)')
+    .eq('id', id)
+    .maybeSingle<Booking>();
+
   const { error } = await supabase.from('bookings').delete().eq('id', id);
   if (error) return { ok: false, error: error.message };
+
+  if (doomed && doomed.status !== 'cancelled') {
+    // Synthesise a "cancelled" snapshot — the row is gone, but for the email
+    // we want to show the original details with the new status.
+    await notifyBookingStatusChanged(
+      { ...doomed, status: 'cancelled' },
+      doomed.status,
+    );
+  }
+
   revalidatePath('/admin');
   revalidatePath('/admin/bookings');
   revalidatePath('/admin/calendar');
@@ -227,7 +273,15 @@ export async function updateBookingAction(formData: FormData) {
 
   if (!id) return;
 
-  await supabase
+  // Snapshot prev status so we can email the guest only on a real transition.
+  const { data: before } = await supabase
+    .from('bookings')
+    .select('status')
+    .eq('id', id)
+    .maybeSingle();
+  const prevStatus = (before?.status as BookingStatus) || undefined;
+
+  const { data: after } = await supabase
     .from('bookings')
     .update({
       status,
@@ -235,7 +289,13 @@ export async function updateBookingAction(formData: FormData) {
       admin_notes,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', id);
+    .eq('id', id)
+    .select('*, property:properties(*)')
+    .maybeSingle<Booking>();
+
+  if (after && prevStatus && after.status !== prevStatus) {
+    await notifyBookingStatusChanged(after, prevStatus);
+  }
 
   revalidatePath('/admin');
   revalidatePath('/admin/bookings');
@@ -275,24 +335,32 @@ export async function createBookingAction(formData: FormData) {
   const total_price = num_nights * (property?.base_price || 0);
   const cleaning_fee = property?.cleaning_fee || 0;
 
-  await supabase.from('bookings').insert({
-    property_id,
-    guest_name,
-    guest_email,
-    guest_phone,
-    guest_country,
-    check_in,
-    check_out,
-    num_guests,
-    num_nights,
-    total_price,
-    cleaning_fee,
-    status,
-    payment_status,
-    payment_method: 'cash',
-    notes,
-    admin_notes,
-  });
+  const { data: created } = await supabase
+    .from('bookings')
+    .insert({
+      property_id,
+      guest_name,
+      guest_email,
+      guest_phone,
+      guest_country,
+      check_in,
+      check_out,
+      num_guests,
+      num_nights,
+      total_price,
+      cleaning_fee,
+      status,
+      payment_status,
+      payment_method: 'cash',
+      notes,
+      admin_notes,
+    })
+    .select('*, property:properties(*)')
+    .maybeSingle<Booking>();
+
+  if (created) {
+    await notifyAdminBookingCreated(created);
+  }
 
   revalidatePath('/admin');
   revalidatePath('/admin/bookings');
@@ -306,7 +374,24 @@ export async function deleteBookingAction(formData: FormData) {
   const id = formData.get('id') as string;
   const redirectTo = (formData.get('redirect_to') as string) || '/admin/calendar';
   if (!id) return;
+
+  // Fetch full row + property BEFORE delete so the cancellation email can
+  // reference the property name, dates, totals, etc.
+  const { data: doomed } = await supabase
+    .from('bookings')
+    .select('*, property:properties(*)')
+    .eq('id', id)
+    .maybeSingle<Booking>();
+
   await supabase.from('bookings').delete().eq('id', id);
+
+  if (doomed && doomed.status !== 'cancelled') {
+    await notifyBookingStatusChanged(
+      { ...doomed, status: 'cancelled' },
+      doomed.status,
+    );
+  }
+
   revalidatePath('/admin');
   revalidatePath('/admin/bookings');
   revalidatePath('/admin/calendar');

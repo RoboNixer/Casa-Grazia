@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { getNights } from '@/lib/utils';
+import { notifyBookingRequested } from '@/lib/email/notifications';
+import type { Booking } from '@/types/database';
 
 function buildErrorRedirect(propertyId: string, message: string) {
   const params = new URLSearchParams();
@@ -43,9 +45,13 @@ export async function submitBookingAction(formData: FormData) {
 
   const supabase = await createClient();
 
+  // We pull the full row (not just price fields) because RLS won't let an anon
+  // session SELECT the inserted booking back, so we can't `.select(...)` after
+  // insert. Instead we build the email payload below from this property row +
+  // the form fields we already have.
   const { data: property } = await supabase
     .from('properties')
-    .select('base_price, cleaning_fee, max_guests')
+    .select('id, name, base_price, cleaning_fee, max_guests')
     .eq('id', propertyId)
     .single();
 
@@ -119,6 +125,45 @@ export async function submitBookingAction(formData: FormData) {
       buildErrorRedirect(propertyId, 'Nešto je pošlo po krivu. Molimo pokušajte ponovo.')
     );
   }
+
+  // RLS blocks anon SELECT on bookings, so we synthesise a Booking-shaped
+  // object from the data we already have for the email templates. The id is
+  // unknown (DB-generated) — we fall back to a deterministic key based on
+  // guest+dates+property so a double-submit within Resend's 24h dedup window
+  // is still caught.
+  const bookingForEmail = {
+    id: `${guestEmail}|${propertyId}|${checkIn}|${checkOut}`,
+    property_id: propertyId,
+    guest_name: guestName,
+    guest_email: guestEmail,
+    guest_phone: guestPhone,
+    guest_country: guestCountry,
+    check_in: checkIn,
+    check_out: checkOut,
+    num_guests: numGuests,
+    num_nights: nights,
+    total_price: totalPrice,
+    cleaning_fee: cleaningFee,
+    notes: '',
+    status: 'pending',
+    payment_status: 'unpaid',
+    payment_method: 'cash',
+    admin_notes: '',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    property: {
+      id: property.id,
+      name: property.name,
+      base_price: property.base_price,
+      cleaning_fee: property.cleaning_fee ?? 0,
+      max_guests: property.max_guests,
+    },
+  } as unknown as Booking;
+
+  // Owner gets a "new request" alert, guest gets a "we received your request"
+  // confirmation. notifyBookingRequested swallows all errors internally so a
+  // Resend outage can never break the redirect to /book/success.
+  await notifyBookingRequested(bookingForEmail);
 
   // Invalidate availability everywhere the new pending booking matters so the
   // dates are immediately blocked for any other guest about to request them,
