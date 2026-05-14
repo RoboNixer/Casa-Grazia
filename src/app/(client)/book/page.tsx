@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
 import BookingForm from '@/components/client/BookingForm';
 import type { Property, SiteSettings } from '@/types/database';
+import { getServerDictionary } from '@/i18n/server';
 
 // Availability must always be live: any new booking (including pending
 // "Na čekanju" requests) needs to mark the calendar immediately so two
@@ -32,6 +33,7 @@ export default async function BookPage({
     { data: settings },
     { data: bookingsData },
     { data: blockedData },
+    { t },
   ] = await Promise.all([
     supabase
       .from('properties')
@@ -52,6 +54,7 @@ export default async function BookPage({
       .from('blocked_dates')
       .select('property_id, start_date, end_date')
       .gte('end_date', todayStr),
+    getServerDictionary(),
   ]);
 
   const properties = (propertiesData ?? []) as Property[];
@@ -80,15 +83,15 @@ export default async function BookPage({
         <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-6 lg:px-8 text-center animate-fade-up">
           <span className="inline-flex items-center gap-3 font-mono text-[10.5px] tracking-[0.28em] uppercase text-emerald-700 mb-4">
             <span className="h-px w-6 bg-emerald-700/50" />
-            Rezervacije
+            {t.book.page.eyebrow}
             <span className="h-px w-6 bg-emerald-700/50" />
           </span>
           <h1 className="font-display font-medium text-ink text-5xl sm:text-6xl lg:text-7xl tracking-tight leading-[1.05]">
-            Rezervirajte <span className="italic text-emerald-700">smještaj</span>
+            {t.book.page.titleLead} <span className="italic text-emerald-700">{t.book.page.titleAccent}</span>
           </h1>
           <p className="mt-6 text-[15.5px] sm:text-base text-ink-muted max-w-xl mx-auto leading-relaxed">
-            Odaberite slobodne datume u kalendaru, a mi ćemo potvrditi rezervaciju.{' '}
-            <span className="text-emerald-700 font-medium">Nije potrebno online plaćanje.</span>
+            {t.book.page.subtitleLead}{' '}
+            <span className="text-emerald-700 font-medium">{t.book.page.subtitleHighlight}</span>
           </p>
         </div>
       </div>

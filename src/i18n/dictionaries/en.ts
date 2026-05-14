@@ -1,0 +1,243 @@
+import { enUS } from 'date-fns/locale';
+import type { Locale as DateFnsLocale } from 'date-fns';
+
+const dict = {
+  dateFns: enUS as DateFnsLocale,
+
+  nav: {
+    home: 'Home',
+    book: 'Book',
+    gallery: 'Gallery',
+    contact: 'Contact',
+  },
+
+  header: {
+    tagline: 'Villa · Istria',
+    openMenu: 'Open menu',
+    closeMenu: 'Close menu',
+    mainMenu: 'Main menu',
+    cta: 'Book',
+    languageLabel: 'Language',
+  },
+
+  home: {
+    hero: {
+      subtitle:
+        'A villa with a private pool in the heart of Istria — the perfect getaway for 4 + 1 guests, only 8 minutes from Rovinj.',
+      checkAvailability: 'Check availability',
+      viewGallery: 'View gallery',
+      guestsLong: 'guests',
+      guestsShort: 'gst.',
+      bedroomsLong: 'bedrooms',
+      bedroomsShort: 'beds',
+      bathroomsLong: 'bathrooms',
+      bathroomsShort: 'bath',
+    },
+    about: {
+      eyebrow: 'About the villa',
+      titleLead: 'An Istrian oasis surrounded by',
+      titleAccent: 'olive groves',
+      p1Before:
+        'Casa Grazia is a charming family holiday home, tastefully renovated in 2017 in the traditional Istrian style. It sits in the village of Rovinjsko Selo and can host ',
+      p1Bold: '4 + 1 guests',
+      p1After: '.',
+      p2Before: 'It is wrapped by an idyllic landscape of ',
+      p2Bold1: '2.5 hectares of land',
+      p2Middle: ', of which ',
+      p2Bold2: '1 hectare of olive grove',
+      p2After: ', only an 8-minute drive from the picturesque town of Rovinj.',
+      p3: 'The house features two bedrooms, a living room, a fully equipped kitchen, two bathrooms, a dishwasher, air conditioning, satellite TV and a spacious covered terrace overlooking the olive grove.',
+      statGuests: 'Guests',
+      statBedrooms: 'Bedrooms',
+      statBathrooms: 'Bathrooms',
+      imgTerrace: 'Terrace overlooking the pool',
+      imgPool: 'Private pool',
+      imgCovered: 'Covered terrace',
+    },
+    amenities: {
+      eyebrow: 'Amenities',
+      titleLead: 'Everything you need for',
+      titleAccent: 'a perfect stay',
+      subtitle:
+        'From the private pool to the fully equipped kitchen — we took care of every detail.',
+    },
+    gallery: {
+      eyebrow: 'Gallery',
+      titleLead: 'Take a',
+      titleAccent: 'closer look',
+      viewAll: 'View all photos',
+    },
+    location: {
+      eyebrow: 'Location',
+      titleLead: 'Calm of Rovinjsko Selo,',
+      titleAccent: 'minutes from Rovinj',
+      description:
+        'The villa sits in a quiet Istrian village, surrounded by olive groves — the centre of Rovinj, its beaches and restaurants are an 8-minute drive away.',
+      fallbackAddress: 'Duranka 44, 52210 Rovinjsko Selo, Croatia',
+      book: 'Book',
+      contact: 'Contact',
+      mapTitle: 'Location map',
+    },
+    cta: {
+      eyebrow: 'Ready for a holiday?',
+      stayLead: 'Your stay at',
+      subtitle:
+        'Reserve your dates today. No online payment required — simply pay on arrival.',
+      priceFrom: 'From',
+      perNight: '/night',
+      bookNow: 'Book now',
+      contactUs: 'Contact us',
+    },
+  },
+
+  book: {
+    page: {
+      eyebrow: 'Reservations',
+      titleLead: 'Book your',
+      titleAccent: 'stay',
+      subtitleLead: 'Pick your dates from the calendar and we will confirm your reservation.',
+      subtitleHighlight: 'No online payment required.',
+    },
+    form: {
+      selectProperty: 'Select property',
+      selectPlaceholder: 'Select a property...',
+      perNightSuffix: '/night',
+      upToGuestsBeforeNumber: 'Up to ',
+      upToGuestsAfter: ' guests',
+      maxGuestsBadge: 'max',
+      calendarTitleLead: 'Choose your',
+      calendarTitleAccent: 'dates',
+      calendarMeta: 'Check-in / Check-out',
+      selectPropertyAlert: 'Select a property above to view availability.',
+      minNightsNoticePrefix: 'Minimum length of stay:',
+      minNightsError:
+        'You picked {selected} {selectedWord}, but the minimum is {min}. Please extend your stay.',
+      stayDetailsTitle: 'Stay',
+      stayDetailsAccent: 'details',
+      guestsCount: 'Number of guests',
+      guestInfoTitle: 'Guest',
+      guestInfoAccent: 'details',
+      fullName: 'Full name',
+      fullNamePlaceholder: 'John Smith',
+      email: 'Email',
+      emailPlaceholder: 'john@example.com',
+      phone: 'Phone',
+      phonePlaceholder: '+44 7700 900000',
+      country: 'Country',
+      countryPlaceholder: 'United Kingdom',
+      cashTitle: 'Cash payment on arrival.',
+      cashBody: 'No online payment required. Pay comfortably when you check in.',
+      summaryEyebrow: 'Booking summary',
+      summaryPlaceholder: 'Select a property',
+      summaryPerNight: '/ night',
+      dateArrival: 'Check-in',
+      dateDeparture: 'Check-out',
+      datePlaceholder: 'Choose',
+      priceAccommodation: 'Accommodation',
+      priceCleaning: 'Cleaning',
+      priceTotal: 'Total',
+      submitSending: 'Sending...',
+      submitSend: 'Send request',
+      submitSelectDates: 'Select dates',
+      submitMinPrefix: 'Min.',
+      confirmationNote: 'Confirmation usually within 24 hours',
+      nightSingular: 'night',
+      nightPlural: 'nights',
+    },
+    calendar: {
+      weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      prevMonth: 'Previous month',
+      nextMonth: 'Next month',
+      promptTinyLabel: 'Choose your dates',
+      promptHeadingArrival: 'Check-in',
+      promptHeadingDeparture: 'Check-out',
+      pickDeparture: 'Choose check-out date',
+      arrivalPrefix: 'Check-in:',
+      nightsSelectedSuffix: 'selected',
+      clearSelection: 'Clear selection',
+      pastDateAria: 'past date',
+      unavailableAria: 'unavailable',
+    },
+    success: {
+      eyebrow: 'Request sent',
+      defaultGuest: 'Guest',
+      thanks: 'Thank you',
+      body: 'Your booking request has been sent successfully.',
+      emailNoteBefore: 'We will confirm your reservation by email at ',
+      emailNoteAfter: '. Payment is made in cash on arrival.',
+      backHome: 'Back to home',
+      viewGallery: 'View gallery',
+    },
+    errors: {
+      fillAll: 'Please fill in all fields.',
+      checkoutAfter: 'The check-out date must be after the check-in date.',
+      propertyNotFound: 'Property not found.',
+      maxGuests: 'The maximum number of guests is {n}.',
+      minNights: 'The minimum length of stay for this property is {n}.',
+      datesUnavailable: 'The selected dates are not available. Please choose different dates.',
+      datesBlocked: 'The selected dates are blocked. Please choose different dates.',
+      generic: 'Something went wrong. Please try again.',
+    },
+  },
+
+  gallery: {
+    eyebrow: 'Visual tour',
+    title: 'Gallery',
+    subtitle:
+      'See Casa Grazia up close — the pool, terrace, interior and the Istrian landscape around it.',
+    empty: 'No images to display.',
+    close: 'Close',
+    prev: 'Previous image',
+    next: 'Next image',
+    altFallback: 'Gallery image',
+  },
+
+  contact: {
+    eyebrow: 'Get in touch',
+    title: 'Contact',
+    subtitle:
+      'Have questions about Casa Grazia or need help with a booking? Reach out — we reply quickly.',
+    sectionLead: 'Get in touch',
+    sectionAccent: 'with us',
+    sectionSubtitle:
+      'We usually reply within a few hours. Feel free to reach us on any of the channels below.',
+    cardAddress: 'Our address',
+    cardPhone: 'Phone',
+    cardEmail: 'Email',
+    cardTimes: 'Check-in / Check-out',
+    checkInLabel: 'Check-in',
+    checkOutLabel: 'Check-out',
+    whatsappCta: 'Message us on WhatsApp',
+    mapTitle: 'Location map',
+    mapUnavailable: 'Map is not available',
+  },
+
+  footer: {
+    tagline: 'Villa · Istria',
+    copyrightSuffix: 'All rights reserved',
+  },
+
+  loading: {
+    aria: 'Loading',
+    caption: 'Preparing your stay',
+  },
+
+  propertyType: {
+    apartment: 'Apartment',
+    villa: 'Villa',
+    studio: 'Studio',
+    house: 'House',
+    room: 'Room',
+  },
+
+  propertyCard: {
+    noImage: 'No image',
+    bedrooms: 'beds',
+    bathrooms: 'bath',
+    guests: 'guests',
+    perNight: '/ night',
+    book: 'Book',
+  },
+} as const;
+
+export default dict;

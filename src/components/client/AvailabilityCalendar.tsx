@@ -18,11 +18,9 @@ import {
   addDays,
   differenceInCalendarDays,
 } from 'date-fns';
-import { hr } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const WEEKDAYS = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'];
+import { useT } from '@/i18n/client';
 
 export interface CalendarRange {
   checkIn: string | null;  // 'yyyy-MM-dd'
@@ -69,6 +67,7 @@ export default function AvailabilityCalendar({
   onChange,
   className,
 }: Props) {
+  const { t } = useT();
   const today = useMemo(() => parseISO(todayStr), [todayStr]);
 
   // Combined view used for click-rejection + range validity checks. Booked
@@ -164,7 +163,7 @@ export default function AvailabilityCalendar({
             // don't let the left month go before "this month"
             isSameMonth(anchor, today) || isBefore(anchor, today)
           }
-          aria-label="Prethodni mjesec"
+          aria-label={t.book.calendar.prevMonth}
           className="w-10 h-10 sm:w-11 sm:h-11 inline-flex items-center justify-center rounded-full text-ink bg-white border border-emerald-900/[0.08] hover:border-emerald-700/40 hover:text-emerald-700 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-emerald-900/[0.08] disabled:hover:text-ink shadow-sm"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -174,30 +173,32 @@ export default function AvailabilityCalendar({
           {value.checkIn && value.checkOut ? (
             <div className="flex flex-col items-center">
               <p className="font-mono text-[10px] tracking-[0.22em] uppercase text-emerald-700">
-                {nights} {nights === 1 ? 'noć' : nights < 5 ? 'noći' : 'noći'} odabrano
+                {nights} {nights === 1 ? t.book.form.nightSingular : t.book.form.nightPlural}{' '}
+                {t.book.calendar.nightsSelectedSuffix}
               </p>
               <p className="font-display text-[15px] sm:text-[17px] text-ink mt-0.5 truncate">
-                {format(parseISO(value.checkIn), 'd. MMM', { locale: hr })}
+                {format(parseISO(value.checkIn), 'd. MMM', { locale: t.dateFns })}
                 <span className="mx-2 text-emerald-700">→</span>
-                {format(parseISO(value.checkOut), 'd. MMM yyyy', { locale: hr })}
+                {format(parseISO(value.checkOut), 'd. MMM yyyy', { locale: t.dateFns })}
               </p>
             </div>
           ) : value.checkIn ? (
             <div className="flex flex-col items-center">
               <p className="font-mono text-[10px] tracking-[0.22em] uppercase text-amber-600">
-                Odaberite datum odlaska
+                {t.book.calendar.pickDeparture}
               </p>
               <p className="font-display text-[15px] sm:text-[17px] text-ink mt-0.5 truncate">
-                Dolazak: {format(parseISO(value.checkIn), 'd. MMMM yyyy', { locale: hr })}
+                {t.book.calendar.arrivalPrefix}{' '}
+                {format(parseISO(value.checkIn), 'd. MMMM yyyy', { locale: t.dateFns })}
               </p>
             </div>
           ) : (
             <div className="flex flex-col items-center">
               <p className="font-mono text-[10px] tracking-[0.22em] uppercase text-ink-faint">
-                Odaberite datume
+                {t.book.calendar.promptTinyLabel}
               </p>
               <p className="font-display text-[15px] sm:text-[17px] text-ink mt-0.5">
-                Dolazak <span className="mx-2 text-emerald-700/40">→</span> Odlazak
+                {t.book.calendar.promptHeadingArrival} <span className="mx-2 text-emerald-700/40">→</span> {t.book.calendar.promptHeadingDeparture}
               </p>
             </div>
           )}
@@ -206,7 +207,7 @@ export default function AvailabilityCalendar({
         <button
           type="button"
           onClick={() => setAnchor((a) => addMonths(a, 1))}
-          aria-label="Sljedeći mjesec"
+          aria-label={t.book.calendar.nextMonth}
           className="w-10 h-10 sm:w-11 sm:h-11 inline-flex items-center justify-center rounded-full text-ink bg-white border border-emerald-900/[0.08] hover:border-emerald-700/40 hover:text-emerald-700 active:scale-95 transition-all shadow-sm"
         >
           <ChevronRight className="w-4 h-4" />
@@ -229,6 +230,10 @@ export default function AvailabilityCalendar({
             onDayClick={handleDayClick}
             onDayHover={setHovered}
             onLeave={() => setHovered(null)}
+            weekdays={t.book.calendar.weekdays}
+            dateFnsLocale={t.dateFns}
+            pastAriaSuffix={t.book.calendar.pastDateAria}
+            unavailableAriaSuffix={t.book.calendar.unavailableAria}
           />
         ))}
       </div>
@@ -241,7 +246,7 @@ export default function AvailabilityCalendar({
             onClick={() => onChange({ checkIn: null, checkOut: null })}
             className="inline-flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.18em] uppercase text-ink-faint hover:text-emerald-700 transition-colors"
           >
-            <X className="w-3 h-3" /> Poništi odabir
+            <X className="w-3 h-3" /> {t.book.calendar.clearSelection}
           </button>
         </div>
       )}
@@ -265,6 +270,10 @@ function MonthGrid({
   onDayClick,
   onDayHover,
   onLeave,
+  weekdays,
+  dateFnsLocale,
+  pastAriaSuffix,
+  unavailableAriaSuffix,
 }: {
   month: Date;
   days: Date[];
@@ -277,6 +286,10 @@ function MonthGrid({
   onDayClick: (dayStr: string) => void;
   onDayHover: (dayStr: string) => void;
   onLeave: () => void;
+  weekdays: readonly string[];
+  dateFnsLocale: import('date-fns').Locale;
+  pastAriaSuffix: string;
+  unavailableAriaSuffix: string;
 }) {
   const ci = range.checkIn ? parseISO(range.checkIn) : null;
   const co = range.checkOut ? parseISO(range.checkOut) : null;
@@ -288,7 +301,7 @@ function MonthGrid({
       {/* Month label */}
       <div className="text-center mb-3">
         <h3 className="font-display text-[18px] sm:text-[20px] text-ink capitalize tracking-tight leading-none">
-          {format(month, 'LLLL', { locale: hr })}
+          {format(month, 'LLLL', { locale: dateFnsLocale })}
           <span className="text-emerald-700/60 ml-1.5 font-normal italic">
             {format(month, 'yyyy')}
           </span>
@@ -297,7 +310,7 @@ function MonthGrid({
 
       {/* Weekday header */}
       <div className="grid grid-cols-7 mb-1.5">
-        {WEEKDAYS.map((d) => (
+        {weekdays.map((d) => (
           <div
             key={d}
             className="text-center font-mono text-[9.5px] tracking-[0.16em] uppercase text-ink-faint py-1.5"
@@ -345,8 +358,8 @@ function MonthGrid({
           // doesn't expose the existence of competing pending requests.
           if (disabled) {
             const ariaLabel = inMonth
-              ? format(day, 'EEEE, d. MMMM yyyy', { locale: hr }) +
-                (isPast ? ' — prošli datum' : ' — nedostupno')
+              ? format(day, 'EEEE, d. MMMM yyyy', { locale: dateFnsLocale }) +
+                (isPast ? ` — ${pastAriaSuffix}` : ` — ${unavailableAriaSuffix}`)
               : undefined;
 
             return (
@@ -405,7 +418,7 @@ function MonthGrid({
                   // In-range hover preview cells
                   inRange && !isCheckIn && !isCheckOut && 'text-emerald-900',
                 )}
-                aria-label={format(day, "EEEE, d. MMMM yyyy", { locale: hr })}
+                aria-label={format(day, "EEEE, d. MMMM yyyy", { locale: dateFnsLocale })}
                 aria-pressed={isCommittedCheckIn || isCommittedCheckOut || undefined}
               >
                 <span className="tabular-nums leading-none">

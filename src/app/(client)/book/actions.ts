@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache';
 import { getNights } from '@/lib/utils';
 import { notifyBookingRequested } from '@/lib/email/notifications';
 import type { Booking } from '@/types/database';
+import { getServerDictionary } from '@/i18n/server';
+import { format as fmt } from '@/i18n/format';
 
 function buildErrorRedirect(propertyId: string, message: string) {
   const params = new URLSearchParams();
@@ -24,6 +26,8 @@ export async function submitBookingAction(formData: FormData) {
   const guestPhone = (formData.get('guest_phone') as string) || '';
   const guestCountry = (formData.get('guest_country') as string) || '';
 
+  const { t } = await getServerDictionary();
+
   if (
     !propertyId ||
     !checkIn ||
@@ -33,13 +37,13 @@ export async function submitBookingAction(formData: FormData) {
     !guestPhone ||
     !guestCountry
   ) {
-    redirect(buildErrorRedirect(propertyId, 'Molimo ispunite sva polja.'));
+    redirect(buildErrorRedirect(propertyId, t.book.errors.fillAll));
   }
 
   const nights = getNights(checkIn, checkOut);
   if (nights <= 0) {
     redirect(
-      buildErrorRedirect(propertyId, 'Datum odlaska mora biti nakon datuma dolaska.')
+      buildErrorRedirect(propertyId, t.book.errors.checkoutAfter)
     );
   }
 
@@ -56,14 +60,14 @@ export async function submitBookingAction(formData: FormData) {
     .single();
 
   if (!property) {
-    redirect(buildErrorRedirect(propertyId, 'Nekretnina nije pronađena.'));
+    redirect(buildErrorRedirect(propertyId, t.book.errors.propertyNotFound));
   }
 
   if (numGuests > property.max_guests) {
     redirect(
       buildErrorRedirect(
         propertyId,
-        `Maksimalan broj gostiju je ${property.max_guests}.`
+        fmt(t.book.errors.maxGuests, { n: property.max_guests }),
       )
     );
   }
@@ -73,7 +77,7 @@ export async function submitBookingAction(formData: FormData) {
     redirect(
       buildErrorRedirect(
         propertyId,
-        `Minimalan broj noćenja za ovu nekretninu je ${minNights}.`
+        fmt(t.book.errors.minNights, { n: minNights }),
       )
     );
   }
@@ -86,10 +90,7 @@ export async function submitBookingAction(formData: FormData) {
 
   if (bookings?.some((b) => checkIn < b.check_out && checkOut > b.check_in)) {
     redirect(
-      buildErrorRedirect(
-        propertyId,
-        'Odabrani datumi nisu dostupni. Molimo odaberite druge datume.'
-      )
+      buildErrorRedirect(propertyId, t.book.errors.datesUnavailable)
     );
   }
 
@@ -100,10 +101,7 @@ export async function submitBookingAction(formData: FormData) {
 
   if (blocked?.some((b) => checkIn < b.end_date && checkOut > b.start_date)) {
     redirect(
-      buildErrorRedirect(
-        propertyId,
-        'Odabrani datumi su blokirani. Molimo odaberite druge datume.'
-      )
+      buildErrorRedirect(propertyId, t.book.errors.datesBlocked)
     );
   }
 
@@ -132,7 +130,7 @@ export async function submitBookingAction(formData: FormData) {
 
   if (insertError) {
     redirect(
-      buildErrorRedirect(propertyId, 'Nešto je pošlo po krivu. Molimo pokušajte ponovo.')
+      buildErrorRedirect(propertyId, t.book.errors.generic)
     );
   }
 

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import GalleryGrid from '@/components/client/GalleryGrid';
 import type { GalleryImage } from '@/types/database';
+import { getServerDictionary } from '@/i18n/server';
 
 export default async function GalleryPage({
   searchParams,
@@ -13,10 +14,13 @@ export default async function GalleryPage({
     typeof imgParam === 'number' && !isNaN(imgParam) ? imgParam : undefined;
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from('gallery_images')
-    .select('*')
-    .order('sort_order', { ascending: true });
+  const [{ data }, { t }] = await Promise.all([
+    supabase
+      .from('gallery_images')
+      .select('*')
+      .order('sort_order', { ascending: true }),
+    getServerDictionary(),
+  ]);
 
   const images = (data ?? []) as GalleryImage[];
 
@@ -27,14 +31,14 @@ export default async function GalleryPage({
         <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-6 lg:px-8 text-center animate-fade-up">
           <span className="inline-flex items-center gap-3 font-mono text-[10.5px] tracking-[0.28em] uppercase text-emerald-700 mb-4">
             <span className="h-px w-6 bg-emerald-700/50" />
-            Vizualni obilazak
+            {t.gallery.eyebrow}
             <span className="h-px w-6 bg-emerald-700/50" />
           </span>
           <h1 className="font-display font-medium text-ink text-5xl sm:text-6xl lg:text-7xl tracking-tight leading-[1.05]">
-            <span className="italic text-emerald-700">Galerija</span>
+            <span className="italic text-emerald-700">{t.gallery.title}</span>
           </h1>
           <p className="mt-6 text-[15.5px] sm:text-base text-ink-muted max-w-xl mx-auto leading-relaxed">
-            Pogledajte Casa Graziju izbliza — bazen, terasu, interijer i istarski krajolik koji je okružuje.
+            {t.gallery.subtitle}
           </p>
         </div>
       </div>

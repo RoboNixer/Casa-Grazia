@@ -1,8 +1,11 @@
 import Link from 'next/link';
 import { Phone, Mail, MapPin, MessageCircle } from 'lucide-react';
 import type { SiteSettings } from '@/types/database';
+import { getServerDictionary } from '@/i18n/server';
+import { translateContent } from '@/i18n/content';
 
-export default function Footer({ siteSettings }: { siteSettings: SiteSettings }) {
+export default async function Footer({ siteSettings }: { siteSettings: SiteSettings }) {
+  const { t, locale } = await getServerDictionary();
   const currentYear = new Date().getFullYear();
 
   // Same brand split as the header (highlight last word in emerald)
@@ -17,7 +20,7 @@ export default function Footer({ siteSettings }: { siteSettings: SiteSettings })
         {/* Brand */}
         <div>
           <p className="font-mono text-[10px] tracking-[0.28em] uppercase text-ink-faint mb-2">
-            Villa · Istra
+            {t.footer.tagline}
           </p>
           <span className="font-display font-medium text-ink text-[26px] sm:text-[30px] leading-none tracking-tight">
             {lead && <span className="italic">{lead} </span>}
@@ -25,7 +28,7 @@ export default function Footer({ siteSettings }: { siteSettings: SiteSettings })
           </span>
           {siteSettings.site_description && (
             <p className="mt-4 text-[13.5px] leading-relaxed text-ink-muted max-w-xl mx-auto">
-              {siteSettings.site_description}
+              {translateContent(siteSettings.site_description, locale)}
             </p>
           )}
         </div>
@@ -36,10 +39,10 @@ export default function Footer({ siteSettings }: { siteSettings: SiteSettings })
         {/* Navigation */}
         <nav className="mt-7 flex flex-wrap items-center justify-center gap-x-7 gap-y-2">
           {[
-            { href: '/', label: 'Početna' },
-            { href: '/book', label: 'Rezerviraj' },
-            { href: '/gallery', label: 'Galerija' },
-            { href: '/contact', label: 'Kontakt' },
+            { href: '/', label: t.nav.home },
+            { href: '/book', label: t.nav.book },
+            { href: '/gallery', label: t.nav.gallery },
+            { href: '/contact', label: t.nav.contact },
           ].map((link) => (
             <Link
               key={link.href}
@@ -125,7 +128,7 @@ export default function Footer({ siteSettings }: { siteSettings: SiteSettings })
         {/* Bottom bar */}
         <div className="mt-12 pt-7 border-t border-emerald-900/[0.07]">
           <p className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-ink-faint">
-            © {currentYear} {siteSettings.site_name} · Sva prava pridržana
+            © {currentYear} {siteSettings.site_name} · {t.footer.copyrightSuffix}
           </p>
         </div>
       </div>

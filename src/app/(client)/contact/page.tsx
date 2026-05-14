@@ -2,42 +2,43 @@ import { createClient } from '@/lib/supabase/server';
 import { MapPin, Phone, Mail, Clock, MessageCircle } from 'lucide-react';
 import { FadeUp, StaggerContainer, StaggerItem } from '@/components/motion/FadeUp';
 import type { SiteSettings } from '@/types/database';
+import { getServerDictionary } from '@/i18n/server';
 
 export default async function ContactPage() {
   const supabase = await createClient();
 
-  const { data: settings } = await supabase
-    .from('site_settings')
-    .select('*')
-    .single();
+  const [{ data: settings }, { t }] = await Promise.all([
+    supabase.from('site_settings').select('*').single(),
+    getServerDictionary(),
+  ]);
 
   const siteSettings = settings as SiteSettings | null;
 
   const contactCards = [
     siteSettings?.address && {
       icon: MapPin,
-      label: 'Naša adresa',
+      label: t.contact.cardAddress,
       value: siteSettings.address,
       href: undefined,
     },
     siteSettings?.phone && {
       icon: Phone,
-      label: 'Telefon',
+      label: t.contact.cardPhone,
       value: siteSettings.phone,
       href: `tel:${siteSettings.phone}`,
     },
     siteSettings?.email && {
       icon: Mail,
-      label: 'E-mail',
+      label: t.contact.cardEmail,
       value: siteSettings.email,
       href: `mailto:${siteSettings.email}`,
     },
     (siteSettings?.check_in_time || siteSettings?.check_out_time) && {
       icon: Clock,
-      label: 'Dolazak / Odlazak',
+      label: t.contact.cardTimes,
       value: [
-        siteSettings?.check_in_time && `Dolazak: ${siteSettings.check_in_time}`,
-        siteSettings?.check_out_time && `Odlazak: ${siteSettings.check_out_time}`,
+        siteSettings?.check_in_time && `${t.contact.checkInLabel}: ${siteSettings.check_in_time}`,
+        siteSettings?.check_out_time && `${t.contact.checkOutLabel}: ${siteSettings.check_out_time}`,
       ].filter(Boolean).join('\n'),
       href: undefined,
     },
@@ -55,14 +56,14 @@ export default async function ContactPage() {
         <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-6 lg:px-8 text-center animate-fade-up">
           <span className="inline-flex items-center gap-3 font-mono text-[10.5px] tracking-[0.28em] uppercase text-emerald-700 mb-4">
             <span className="h-px w-6 bg-emerald-700/50" />
-            Javite nam se
+            {t.contact.eyebrow}
             <span className="h-px w-6 bg-emerald-700/50" />
           </span>
           <h1 className="font-display font-medium text-ink text-5xl sm:text-6xl lg:text-7xl tracking-tight leading-[1.05]">
-            <span className="italic text-emerald-700">Kontakt</span>
+            <span className="italic text-emerald-700">{t.contact.title}</span>
           </h1>
           <p className="mt-6 text-[15.5px] sm:text-base text-ink-muted max-w-xl mx-auto leading-relaxed">
-            Imate pitanja o vili Casa Grazia ili trebate pomoć s rezervacijom? Javite nam se — odgovaramo brzo.
+            {t.contact.subtitle}
           </p>
         </div>
       </div>
@@ -76,10 +77,10 @@ export default async function ContactPage() {
             <div>
               <FadeUp className="mb-10">
                 <h2 className="font-display font-medium text-ink text-3xl sm:text-4xl tracking-tight leading-tight">
-                  Kontaktirajte <span className="italic text-emerald-700">nas</span>
+                  {t.contact.sectionLead} <span className="italic text-emerald-700">{t.contact.sectionAccent}</span>
                 </h2>
                 <p className="mt-3 text-ink-muted leading-relaxed">
-                  Obično odgovaramo unutar nekoliko sati. Slobodno nas kontaktirajte putem bilo kojeg kanala.
+                  {t.contact.sectionSubtitle}
                 </p>
               </FadeUp>
 
@@ -120,7 +121,7 @@ export default async function ContactPage() {
                     className="group inline-flex items-center gap-3 px-6 py-3.5 rounded-full bg-ink text-white font-medium text-[14.5px] hover:bg-emerald-700 active:scale-[0.97] transition-all shadow-md"
                   >
                     <MessageCircle className="h-4 w-4" />
-                    Piši nam na WhatsApp
+                    {t.contact.whatsappCta}
                     <span className="ml-1 text-emerald-200 text-sm font-normal group-hover:translate-x-0.5 transition-transform">→</span>
                   </a>
                 </FadeUp>
@@ -138,13 +139,13 @@ export default async function ContactPage() {
                     allowFullScreen
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
-                    title="Karta lokacije"
+                    title={t.contact.mapTitle}
                   />
                 </div>
               ) : (
                 <div className="rounded-3xl bg-emerald-50/60 flex flex-col items-center justify-center h-full min-h-[420px] text-ink-muted gap-3 border border-emerald-900/[0.08]">
                   <MapPin className="w-8 h-8 text-emerald-700/60" />
-                  <span className="text-sm">Karta nije dostupna</span>
+                  <span className="text-sm">{t.contact.mapUnavailable}</span>
                 </div>
               )}
             </FadeUp>

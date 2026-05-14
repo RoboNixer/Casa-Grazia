@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { GalleryImage, PropertyImage } from '@/types/database';
+import { getServerDictionary } from '@/i18n/server';
 
 type ImageItem = GalleryImage | PropertyImage;
 
-export default function GalleryGrid({
+export default async function GalleryGrid({
   images,
   lightboxIndex,
   basePath = '/gallery',
@@ -13,10 +14,12 @@ export default function GalleryGrid({
   lightboxIndex?: number;
   basePath?: string;
 }) {
+  const { t } = await getServerDictionary();
+
   if (!images.length) {
     return (
       <div className="text-center py-20 text-gray-500">
-        <p>No images to display.</p>
+        <p>{t.gallery.empty}</p>
       </div>
     );
   }
@@ -45,7 +48,7 @@ export default function GalleryGrid({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={image.url}
-              alt={image.alt_text || 'Gallery image'}
+              alt={image.alt_text || t.gallery.altFallback}
               className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500"
               loading="lazy"
             />
@@ -60,7 +63,7 @@ export default function GalleryGrid({
             prefetch={false}
             scroll={false}
             className="absolute inset-0"
-            aria-label="Close lightbox"
+            aria-label={t.gallery.close}
           />
 
           <Link
@@ -68,7 +71,7 @@ export default function GalleryGrid({
             prefetch={false}
             scroll={false}
             className="absolute top-4 right-4 z-10 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-95 transition-all"
-            aria-label="Close"
+            aria-label={t.gallery.close}
           >
             <X className="h-6 w-6" />
           </Link>
@@ -78,7 +81,7 @@ export default function GalleryGrid({
             prefetch={false}
             scroll={false}
             className="absolute left-2 sm:left-4 z-10 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-95 transition-all"
-            aria-label="Previous image"
+            aria-label={t.gallery.prev}
           >
             <ChevronLeft className="h-6 w-6" />
           </Link>
@@ -88,7 +91,7 @@ export default function GalleryGrid({
             prefetch={false}
             scroll={false}
             className="absolute right-2 sm:right-4 z-10 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-95 transition-all"
-            aria-label="Next image"
+            aria-label={t.gallery.next}
           >
             <ChevronRight className="h-6 w-6" />
           </Link>
@@ -96,7 +99,7 @@ export default function GalleryGrid({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={current.url}
-            alt={current.alt_text || 'Gallery image'}
+            alt={current.alt_text || t.gallery.altFallback}
             className="relative max-h-[90vh] max-w-[90vw] object-contain rounded-lg animate-scale-in"
           />
 

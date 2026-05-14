@@ -2,15 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
-
-const navLinks = [
-  { href: '/', label: 'Početna' },
-  { href: '/book', label: 'Rezerviraj' },
-  { href: '/gallery', label: 'Galerija' },
-  { href: '/contact', label: 'Kontakt' },
-];
+import { useT } from '@/i18n/client';
+import LanguageSwitcher from './LanguageSwitcher';
 
 function isActive(currentPath: string, href: string) {
   if (href === '/') return currentPath === '/';
@@ -19,6 +14,16 @@ function isActive(currentPath: string, href: string) {
 
 export default function Header({ siteName }: { siteName: string }) {
   const pathname = usePathname() ?? '/';
+  const { t } = useT();
+  const navLinks = useMemo(
+    () => [
+      { href: '/', label: t.nav.home },
+      { href: '/book', label: t.nav.book },
+      { href: '/gallery', label: t.nav.gallery },
+      { href: '/contact', label: t.nav.contact },
+    ],
+    [t],
+  );
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -98,7 +103,7 @@ export default function Header({ siteName }: { siteName: string }) {
                 lightOnTop ? 'text-white/55' : 'text-ink-faint',
               )}
             >
-              Villa · Istra
+              {t.header.tagline}
             </span>
             <span
               className={cn(
@@ -167,18 +172,22 @@ export default function Header({ siteName }: { siteName: string }) {
                   : 'bg-ink text-white hover:bg-emerald-700 shadow-[0_8px_22px_-10px_rgba(15,23,42,0.55)]',
               )}
             >
-              Rezerviraj
+              {t.header.cta}
               <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-0.5">→</span>
             </Link>
+
+            <LanguageSwitcher lightOnTop={lightOnTop} />
           </nav>
 
-          {/* Mobile burger (BURA-style, asymmetric line + morph to X) */}
+          {/* Mobile: language switcher + burger */}
+          <div className="md:hidden flex items-center gap-1.5">
+            <LanguageSwitcher lightOnTop={lightOnTop} />
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
-            aria-label="Otvori izbornik"
+            aria-label={t.header.openMenu}
             className={cn(
-              'md:hidden relative flex flex-col items-center justify-center gap-[5px] w-10 h-10 -mr-1 transition-colors',
+              'relative flex flex-col items-center justify-center gap-[5px] w-10 h-10 -mr-1 transition-colors',
               lightOnTop ? 'text-white' : 'text-ink',
             )}
           >
@@ -195,6 +204,7 @@ export default function Header({ siteName }: { siteName: string }) {
               className="block h-[1.5px] w-4 bg-current rounded-full transition-all duration-400 ease-[cubic-bezier(0.77,0,0.175,1)]"
             />
           </button>
+          </div>
         </div>
       </header>
 
@@ -205,6 +215,7 @@ export default function Header({ siteName }: { siteName: string }) {
         brandLead={brandLead}
         brandAccent={brandAccent}
         pathname={pathname}
+        navLinks={navLinks}
       />
     </>
   );
@@ -219,6 +230,7 @@ function MobileMenu({
   brandLead,
   brandAccent,
   pathname,
+  navLinks,
 }: {
   open: boolean;
   onClose: () => void;
@@ -226,7 +238,9 @@ function MobileMenu({
   brandLead: string;
   brandAccent: string;
   pathname: string;
+  navLinks: { href: string; label: string }[];
 }) {
+  const { t } = useT();
   // Two-phase mount: first render at "closed" state so the browser commits
   // the initial styles, then on the NEXT frame flip to "open" state so the
   // CSS transition has a before/after to interpolate between.
@@ -262,12 +276,12 @@ function MobileMenu({
       )}
       role="dialog"
       aria-modal="true"
-      aria-label="Glavni izbornik"
+      aria-label={t.header.mainMenu}
     >
       {/* Backdrop — soft tint */}
       <button
         type="button"
-        aria-label="Zatvori izbornik"
+        aria-label={t.header.closeMenu}
         onClick={onClose}
         className={cn(
           'absolute inset-0 bg-slate-900/30',
@@ -358,7 +372,7 @@ function MobileMenu({
         >
           <div className="flex flex-col leading-none gap-1">
             <span className="font-mono text-[9px] tracking-[0.28em] uppercase text-ink-faint">
-              Villa · Istra
+              {t.header.tagline}
             </span>
             <span className="font-display font-medium text-[22px] leading-none tracking-tight text-ink">
               {brandLead && <span className="italic">{brandLead} </span>}
@@ -368,7 +382,7 @@ function MobileMenu({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Zatvori izbornik"
+            aria-label={t.header.closeMenu}
             className="
               flex items-center justify-center w-10 h-10 rounded-none
               border border-slate-900/15 text-ink text-lg leading-none
@@ -470,7 +484,7 @@ function MobileMenu({
               shadow-[0_14px_30px_-12px_rgba(15,23,42,0.45)]
             "
           >
-            Rezerviraj
+            {t.header.cta}
             <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-0.5">→</span>
           </Link>
         </div>

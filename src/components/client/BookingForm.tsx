@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { format, parseISO, addDays, isBefore } from 'date-fns';
-import { hr } from 'date-fns/locale';
+import { useT } from '@/i18n/client';
+import { format as fmt } from '@/i18n/format';
 import {
   Banknote,
   CalendarDays,
@@ -57,6 +58,7 @@ export default function BookingForm({
   blocked,
   todayStr,
 }: BookingFormProps) {
+  const { t } = useT();
   const [propertyId, setPropertyId] = useState<string>(
     initialPropertyId ?? (properties[0]?.id ?? ''),
   );
@@ -175,7 +177,7 @@ export default function BookingForm({
           <div className="bg-white rounded-3xl border border-emerald-900/[0.07] shadow-premium p-5 sm:p-6">
             <label htmlFor="property" className={labelClass}>
               <Building2 className="w-3.5 h-3.5" />
-              Odaberi nekretninu
+              {t.book.form.selectProperty}
             </label>
             <select
               id="property"
@@ -186,11 +188,11 @@ export default function BookingForm({
               className={fieldClass}
             >
               <option value="" disabled>
-                Odaberi nekretninu...
+                {t.book.form.selectPlaceholder}
               </option>
               {properties.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} — {formatCurrency(p.base_price, currencySymbol)}/noć
+                  {p.name} — {formatCurrency(p.base_price, currencySymbol)}{t.book.form.perNightSuffix}
                 </option>
               ))}
             </select>
@@ -220,10 +222,10 @@ export default function BookingForm({
                 {selectedProperty.name}
               </p>
               <p className="text-[13px] text-ink-muted mt-2">
-                Do {selectedProperty.max_guests} gostiju
+                {t.book.form.upToGuestsBeforeNumber}{selectedProperty.max_guests}{t.book.form.upToGuestsAfter}
                 {' · '}
                 <span className="font-semibold text-emerald-700">
-                  {formatCurrency(selectedProperty.base_price, currencySymbol)}/noć
+                  {formatCurrency(selectedProperty.base_price, currencySymbol)}{t.book.form.perNightSuffix}
                 </span>
               </p>
             </div>
@@ -234,11 +236,11 @@ export default function BookingForm({
         <div className="bg-white rounded-3xl border border-emerald-900/[0.07] shadow-premium p-5 sm:p-7">
           <div className="flex items-center justify-between gap-3 mb-5">
             <h3 className={sectionHeadingClass + ' mb-0'}>
-              Odaberi <span className="italic text-emerald-700">datume</span>
+              {t.book.form.calendarTitleLead} <span className="italic text-emerald-700">{t.book.form.calendarTitleAccent}</span>
             </h3>
             <span className="hidden sm:inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.18em] uppercase text-ink-faint">
               <CalendarDays className="w-3 h-3" />
-              Dolazak / Odlazak
+              {t.book.form.calendarMeta}
             </span>
           </div>
 
@@ -246,7 +248,7 @@ export default function BookingForm({
             <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-5 flex items-start gap-3">
               <AlertCircle className="w-4 h-4 mt-0.5 text-amber-600" />
               <p className="text-[13.5px] text-amber-900">
-                Odaberite nekretninu iznad za prikaz dostupnosti.
+                {t.book.form.selectPropertyAlert}
               </p>
             </div>
           ) : (
@@ -255,9 +257,9 @@ export default function BookingForm({
                 <div className="mb-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/70 px-4 py-3 flex items-start gap-2.5">
                   <AlertCircle className="w-4 h-4 mt-0.5 text-emerald-700" />
                   <p className="text-[13px] text-emerald-900">
-                    Minimalan broj noćenja:{' '}
+                    {t.book.form.minNightsNoticePrefix}{' '}
                     <span className="font-semibold">{minNights}</span>{' '}
-                    {minNights < 5 ? 'noći' : 'noći'}.
+                    {t.book.form.nightPlural}.
                   </p>
                 </div>
               )}
@@ -272,10 +274,12 @@ export default function BookingForm({
                 <div className="mt-4 rounded-2xl bg-rose-50 border border-rose-200 px-4 py-3 flex items-start gap-2.5">
                   <AlertCircle className="w-4 h-4 mt-0.5 text-rose-600" />
                   <p className="text-[13px] text-rose-900">
-                    Odabrali ste <span className="font-semibold">{nights}</span>{' '}
-                    {nights === 1 ? 'noć' : 'noći'}, a minimum je{' '}
-                    <span className="font-semibold">{minNights}</span>. Molimo
-                    produžite boravak.
+                    {fmt(t.book.form.minNightsError, {
+                      selected: nights,
+                      selectedWord:
+                        nights === 1 ? t.book.form.nightSingular : t.book.form.nightPlural,
+                      min: minNights,
+                    })}
                   </p>
                 </div>
               )}
@@ -290,15 +294,15 @@ export default function BookingForm({
         {/* ── Guest count ───────────────────────────────────────────── */}
         <div className="bg-white rounded-3xl border border-emerald-900/[0.07] shadow-premium p-5 sm:p-7">
           <h3 className={sectionHeadingClass}>
-            Detalji <span className="italic text-emerald-700">boravka</span>
+            {t.book.form.stayDetailsTitle} <span className="italic text-emerald-700">{t.book.form.stayDetailsAccent}</span>
           </h3>
           <div>
             <label htmlFor="guests" className={labelClass}>
               <Users className="h-3.5 w-3.5" />
-              Broj gostiju
+              {t.book.form.guestsCount}
               {selectedProperty && (
                 <span className="ml-auto normal-case tracking-normal text-[10.5px] text-ink-faint">
-                  max {selectedProperty.max_guests}
+                  {t.book.form.maxGuestsBadge} {selectedProperty.max_guests}
                 </span>
               )}
             </label>
@@ -319,60 +323,60 @@ export default function BookingForm({
         {/* ── Guest details ─────────────────────────────────────────── */}
         <div className="bg-white rounded-3xl border border-emerald-900/[0.07] shadow-premium p-5 sm:p-7">
           <h3 className={sectionHeadingClass}>
-            Podaci o <span className="italic text-emerald-700">gostu</span>
+            {t.book.form.guestInfoTitle} <span className="italic text-emerald-700">{t.book.form.guestInfoAccent}</span>
           </h3>
           <div className="space-y-5">
             <div>
               <label htmlFor="name" className={labelClass}>
-                <User className="h-3.5 w-3.5" /> Ime i prezime
+                <User className="h-3.5 w-3.5" /> {t.book.form.fullName}
               </label>
               <input
                 type="text"
                 id="name"
                 name="guest_name"
                 required
-                placeholder="Ivan Horvat"
+                placeholder={t.book.form.fullNamePlaceholder}
                 className={fieldClass}
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
                 <label htmlFor="email" className={labelClass}>
-                  <Mail className="h-3.5 w-3.5" /> E-mail
+                  <Mail className="h-3.5 w-3.5" /> {t.book.form.email}
                 </label>
                 <input
                   type="email"
                   id="email"
                   name="guest_email"
                   required
-                  placeholder="ivan@primjer.hr"
+                  placeholder={t.book.form.emailPlaceholder}
                   className={fieldClass}
                 />
               </div>
               <div>
                 <label htmlFor="phone" className={labelClass}>
-                  <Phone className="h-3.5 w-3.5" /> Telefon
+                  <Phone className="h-3.5 w-3.5" /> {t.book.form.phone}
                 </label>
                 <input
                   type="tel"
                   id="phone"
                   name="guest_phone"
                   required
-                  placeholder="+385 91 234 5678"
+                  placeholder={t.book.form.phonePlaceholder}
                   className={fieldClass}
                 />
               </div>
             </div>
             <div>
               <label htmlFor="country" className={labelClass}>
-                <Globe className="h-3.5 w-3.5" /> Država
+                <Globe className="h-3.5 w-3.5" /> {t.book.form.country}
               </label>
               <input
                 type="text"
                 id="country"
                 name="guest_country"
                 required
-                placeholder="Hrvatska"
+                placeholder={t.book.form.countryPlaceholder}
                 className={fieldClass}
               />
             </div>
@@ -383,8 +387,8 @@ export default function BookingForm({
         <div className="flex items-start gap-3.5 bg-amber-50/60 border border-amber-200/70 rounded-2xl px-5 py-4">
           <Banknote className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
           <p className="text-[13.5px] text-amber-900 leading-relaxed">
-            <span className="font-semibold">Plaćanje gotovinom pri dolasku.</span>{' '}
-            Nije potrebno online plaćanje. Platite ugodno kada se prijavite.
+            <span className="font-semibold">{t.book.form.cashTitle}</span>{' '}
+            {t.book.form.cashBody}
           </p>
         </div>
       </div>
@@ -398,23 +402,33 @@ export default function BookingForm({
             <div>
               <p className="font-mono text-[10px] tracking-[0.22em] uppercase text-emerald-700 mb-2">
                 <Sparkles className="inline w-3 h-3 -mt-0.5 mr-1" />
-                Sažetak rezervacije
+                {t.book.form.summaryEyebrow}
               </p>
               <h3 className="font-display text-[26px] text-ink leading-tight tracking-tight">
-                {selectedProperty?.name ?? 'Odaberi nekretninu'}
+                {selectedProperty?.name ?? t.book.form.summaryPlaceholder}
               </h3>
               {selectedProperty && (
                 <p className="text-[13px] text-ink-muted mt-1.5">
                   {formatCurrency(selectedProperty.base_price, currencySymbol)}
-                  <span className="text-ink-faint"> / noć</span>
+                  <span className="text-ink-faint"> {t.book.form.summaryPerNight}</span>
                 </p>
               )}
             </div>
 
             {/* Date pills */}
             <div className="grid grid-cols-2 gap-2.5">
-              <DatePill label="Dolazak" date={range.checkIn} />
-              <DatePill label="Odlazak" date={range.checkOut} />
+              <DatePill
+                label={t.book.form.dateArrival}
+                date={range.checkIn}
+                placeholder={t.book.form.datePlaceholder}
+                dateFnsLocale={t.dateFns}
+              />
+              <DatePill
+                label={t.book.form.dateDeparture}
+                date={range.checkOut}
+                placeholder={t.book.form.datePlaceholder}
+                dateFnsLocale={t.dateFns}
+              />
             </div>
 
             {/* Price breakdown */}
@@ -422,8 +436,8 @@ export default function BookingForm({
               <Row
                 label={
                   selectedProperty && nights > 0
-                    ? `${formatCurrency(selectedProperty.base_price, currencySymbol)} × ${nights} ${nights === 1 ? 'noć' : 'noći'}`
-                    : 'Smještaj'
+                    ? `${formatCurrency(selectedProperty.base_price, currencySymbol)} × ${nights} ${nights === 1 ? t.book.form.nightSingular : t.book.form.nightPlural}`
+                    : t.book.form.priceAccommodation
                 }
                 value={
                   nights > 0
@@ -432,7 +446,7 @@ export default function BookingForm({
                 }
               />
               <Row
-                label="Čišćenje"
+                label={t.book.form.priceCleaning}
                 value={
                   nights > 0 && cleaningFee > 0
                     ? formatCurrency(cleaningFee, currencySymbol)
@@ -440,7 +454,7 @@ export default function BookingForm({
                 }
               />
               <div className="flex items-baseline justify-between pt-3 mt-1 border-t border-emerald-900/[0.06]">
-                <span className="font-display text-[20px] text-ink">Ukupno</span>
+                <span className="font-display text-[20px] text-ink">{t.book.form.priceTotal}</span>
                 <span className="font-display text-[28px] text-ink tabular-nums">
                   {nights > 0
                     ? formatCurrency(totalPrice, currencySymbol)
@@ -457,7 +471,7 @@ export default function BookingForm({
               minNights={minNights}
             />
             <p className="text-center font-mono text-[10.5px] tracking-[0.2em] uppercase text-ink-faint mt-3.5">
-              Potvrda obično unutar 24 sata
+              {t.book.form.confirmationNote}
             </p>
           </div>
         </div>
@@ -477,15 +491,16 @@ function SubmitButton({
   belowMinNights: boolean;
   minNights: number;
 }) {
+  const { t } = useT();
   const { pending } = useFormStatus();
   const disabled = !canSubmit || pending;
   const label = pending
-    ? 'Šaljem...'
+    ? t.book.form.submitSending
     : canSubmit
-      ? 'Pošalji zahtjev'
+      ? t.book.form.submitSend
       : belowMinNights
-        ? `Min. ${minNights} ${minNights === 1 ? 'noć' : 'noći'}`
-        : 'Odaberi datume';
+        ? `${t.book.form.submitMinPrefix} ${minNights} ${minNights === 1 ? t.book.form.nightSingular : t.book.form.nightPlural}`
+        : t.book.form.submitSelectDates;
   return (
     <button
       type="submit"
@@ -498,7 +513,17 @@ function SubmitButton({
   );
 }
 
-function DatePill({ label, date }: { label: string; date: string | null }) {
+function DatePill({
+  label,
+  date,
+  placeholder,
+  dateFnsLocale,
+}: {
+  label: string;
+  date: string | null;
+  placeholder: string;
+  dateFnsLocale: import('date-fns').Locale;
+}) {
   return (
     <div className="rounded-2xl border border-emerald-900/[0.08] bg-emerald-50/40 px-3.5 py-3">
       <p className="font-mono text-[9.5px] tracking-[0.2em] uppercase text-ink-faint mb-1">
@@ -506,14 +531,14 @@ function DatePill({ label, date }: { label: string; date: string | null }) {
       </p>
       {date ? (
         <p className="font-display text-[15.5px] text-ink leading-none">
-          {format(parseISO(date), 'd. MMM', { locale: hr })}
+          {format(parseISO(date), 'd. MMM', { locale: dateFnsLocale })}
           <span className="text-ink-faint italic ml-1.5 text-[12px]">
             {format(parseISO(date), 'yyyy')}
           </span>
         </p>
       ) : (
         <p className="font-display text-[15.5px] text-ink-faint/60 leading-none italic">
-          Odaberi
+          {placeholder}
         </p>
       )}
     </div>

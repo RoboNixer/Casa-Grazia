@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useT } from '@/i18n/client';
 
 const MIN_DISPLAY_MS = 1400; // never feels like a flash
 const EXIT_MS = 850;         // matches the curtain transition in globals.css
@@ -26,6 +27,7 @@ interface LoadingScreenProps {
  * ───────────────────────────────────────────────────────────────────────── */
 
 export default function LoadingScreen({ siteName }: LoadingScreenProps) {
+  const { t } = useT();
   // 'in' → visible, 'leaving' → exit animation, 'gone' → unmounted.
   const [phase, setPhase] = useState<'in' | 'leaving' | 'gone'>('in');
 
@@ -78,7 +80,7 @@ export default function LoadingScreen({ siteName }: LoadingScreenProps) {
   return (
     <div
       role="status"
-      aria-label="Učitavanje"
+      aria-label={t.loading.aria}
       data-phase={phase}
       className="cg-loader fixed inset-0 z-[2147483645] flex items-center justify-center select-none"
       style={
@@ -128,7 +130,7 @@ export default function LoadingScreen({ siteName }: LoadingScreenProps) {
           style={{ animationDelay: '40ms' }}
         >
           <span className="h-px w-7 bg-emerald-700/50" />
-          Villa · Istra
+          {t.header.tagline}
           <span className="h-px w-7 bg-emerald-700/50" />
         </p>
 
@@ -174,7 +176,7 @@ export default function LoadingScreen({ siteName }: LoadingScreenProps) {
           className="cg-loader-fade-up mt-6 font-mono text-[10px] tracking-[0.28em] uppercase text-ink-muted"
           style={{ animationDelay: '900ms' }}
         >
-          Pripremamo vaš boravak
+          {t.loading.caption}
         </p>
       </div>
     </div>
