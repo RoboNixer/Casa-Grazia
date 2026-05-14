@@ -10,7 +10,6 @@ import {
   DollarSign,
   LogOut,
 } from 'lucide-react';
-import { logoutAction } from '@/app/admin/actions';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -102,7 +101,7 @@ function SidebarContent() {
         <div className="relative h-px mb-4 mx-0.5">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-700/60 to-transparent" />
         </div>
-        <form action={logoutAction}>
+        <form action="/auth/sign-out" method="post">
           <button
             type="submit"
             className="group w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-all duration-150"

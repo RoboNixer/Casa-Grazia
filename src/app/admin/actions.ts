@@ -16,12 +16,25 @@ import type {
   Property,
   PropertyImage,
 } from '@/types/database';
+import { getPgPool } from '@/lib/db/pool';
+import { loadPropertyWithImagesPg, persistPropertyViaPostgres } from '@/lib/db/saveProperty';
 
 async function requireAdmin() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   if (!data.user) redirect('/login');
   return supabase;
+}
+
+/** Live JSON mutations (`prop*`, `cal*`) must not `redirect()` when unauthenticated — that yields non-RSC HTML and breaks `fetchServerAction`. */
+async function requireAdminOrError(): Promise<
+  | { ok: true; supabase: Awaited<ReturnType<typeof createClient>> }
+  | { ok: false; error: string }
+> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return { ok: false, error: 'Potrebna je prijava' };
+  return { ok: true, supabase };
 }
 
 // ============ CALENDAR (data-returning, no redirect) ============
@@ -47,7 +60,9 @@ export async function calCreateBooking(input: {
   notes?: string;
   admin_notes?: string;
 }): Promise<CalendarMutationResult<Booking>> {
-  const supabase = await requireAdmin();
+  const auth = await requireAdminOrError();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = auth.supabase;
   if (!input.property_id || !input.guest_name || !input.check_in || !input.check_out) {
     return { ok: false, error: 'Nedostaju obavezna polja' };
   }
@@ -113,7 +128,9 @@ export async function calUpdateBooking(input: {
   check_out?: string;
   property_id?: string;
 }): Promise<CalendarMutationResult<Booking>> {
-  const supabase = await requireAdmin();
+  const auth = await requireAdminOrError();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = auth.supabase;
   if (!input.id) return { ok: false, error: 'Nedostaje ID' };
 
   // Snapshot the previous status before we mutate, so we can detect a real
@@ -186,7 +203,9 @@ export async function calUpdateBooking(input: {
 }
 
 export async function calDeleteBooking(id: string): Promise<CalendarMutationResult<{ id: string }>> {
-  const supabase = await requireAdmin();
+  const auth = await requireAdminOrError();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = auth.supabase;
   if (!id) return { ok: false, error: 'Nedostaje ID' };
 
   // Pull the row + joined property BEFORE deleting so we can email the guest a
@@ -224,7 +243,9 @@ export async function calBlockDates(input: {
   end_date?: string;
   reason?: string;
 }): Promise<CalendarMutationResult<BlockedDate>> {
-  const supabase = await requireAdmin();
+  const auth = await requireAdminOrError();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = auth.supabase;
   if (!input.property_id || !input.start_date) {
     return { ok: false, error: 'Nedostaju obavezna polja' };
   }
@@ -246,7 +267,9 @@ export async function calBlockDates(input: {
 }
 
 export async function calUnblockDate(id: string): Promise<CalendarMutationResult<{ id: string }>> {
-  const supabase = await requireAdmin();
+  const auth = await requireAdminOrError();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = auth.supabase;
   if (!id) return { ok: false, error: 'Nedostaje ID' };
   const { error } = await supabase.from('blocked_dates').delete().eq('id', id);
   if (error) return { ok: false, error: error.message };
@@ -255,11 +278,7 @@ export async function calUnblockDate(id: string): Promise<CalendarMutationResult
   return { ok: true, data: { id } };
 }
 
-export async function logoutAction() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
-  redirect('/login');
-}
+
 
 // ============ BOOKINGS ============
 
@@ -476,6 +495,7 @@ export async function savePropertyAction(formData: FormData) {
     size_sqm: parseInt(formData.get('size_sqm') as string) || 0,
     base_price: parseFloat(formData.get('base_price') as string) || 0,
     cleaning_fee: parseFloat(formData.get('cleaning_fee') as string) || 0,
+    min_nights: Math.max(1, parseInt(formData.get('min_nights') as string) || 1),
     amenities: ((formData.get('amenities') as string) || '')
       .split(',')
       .map((a) => a.trim())
@@ -489,10 +509,18 @@ export async function savePropertyAction(formData: FormData) {
 
   if (!data.name) return;
 
-  if (id) {
-    await supabase.from('properties').update(data).eq('id', id);
+  if (process.env.DATABASE_URL?.trim()) {
+    const persisted = await persistPropertyViaPostgres({
+      id: id || null,
+      ...data,
+    });
+    if (!persisted.ok) throw new Error(persisted.error);
   } else {
-    await supabase.from('properties').insert(data);
+    if (id) {
+      await supabase.from('properties').update(data).eq('id', id);
+    } else {
+      await supabase.from('properties').insert(data);
+    }
   }
 
   revalidatePath('/admin/properties');
@@ -564,6 +592,7 @@ export async function propSaveProperty(input: {
   size_sqm?: number;
   base_price?: number;
   cleaning_fee?: number;
+  min_nights?: number;
   amenities?: string[];
   address?: string;
   latitude?: number;
@@ -571,7 +600,9 @@ export async function propSaveProperty(input: {
   is_active?: boolean;
   sort_order?: number;
 }): Promise<CalendarMutationResult<Property>> {
-  const supabase = await requireAdmin();
+  const auth = await requireAdminOrError();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = auth.supabase;
 
   if (!input.name?.trim()) return { ok: false, error: 'Naziv je obavezan' };
 
@@ -586,6 +617,7 @@ export async function propSaveProperty(input: {
     size_sqm: input.size_sqm ?? 0,
     base_price: input.base_price ?? 0,
     cleaning_fee: input.cleaning_fee ?? 0,
+    min_nights: Math.max(1, input.min_nights ?? 1),
     amenities: input.amenities || [],
     address: input.address || '',
     latitude: input.latitude ?? 0,
@@ -593,6 +625,27 @@ export async function propSaveProperty(input: {
     is_active: input.is_active ?? true,
     sort_order: input.sort_order ?? 0,
   };
+
+  if (process.env.DATABASE_URL?.trim()) {
+    try {
+      const persisted = await persistPropertyViaPostgres({
+        id: input.id ?? null,
+        ...payload,
+      });
+      if (!persisted.ok) return { ok: false, error: persisted.error };
+      const pool = getPgPool();
+      if (!pool) return { ok: false, error: 'DATABASE_URL nije valjan' };
+      const full = await loadPropertyWithImagesPg(pool, persisted.id);
+      if (!full) return { ok: false, error: 'Greška učitavanja nakon spremanja' };
+      revalidatePath('/admin/properties');
+      revalidatePath('/admin/pricing');
+      revalidatePath('/');
+      return { ok: true, data: full };
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Greška spremanja';
+      return { ok: false, error: msg };
+    }
+  }
 
   const query = input.id
     ? supabase.from('properties').update(payload).eq('id', input.id)
@@ -611,7 +664,9 @@ export async function propSaveProperty(input: {
 }
 
 export async function propDeleteProperty(id: string): Promise<CalendarMutationResult<{ id: string }>> {
-  const supabase = await requireAdmin();
+  const auth = await requireAdminOrError();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = auth.supabase;
   if (!id) return { ok: false, error: 'Nedostaje ID' };
   const { error } = await supabase.from('properties').delete().eq('id', id);
   if (error) return { ok: false, error: error.message };
@@ -625,7 +680,9 @@ export async function propTogglePropertyActive(input: {
   id: string;
   is_active: boolean;
 }): Promise<CalendarMutationResult<{ id: string; is_active: boolean }>> {
-  const supabase = await requireAdmin();
+  const auth = await requireAdminOrError();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = auth.supabase;
   if (!input.id) return { ok: false, error: 'Nedostaje ID' };
   const nextActive = !input.is_active;
   const { error } = await supabase
@@ -643,7 +700,9 @@ export async function propAddPropertyImage(input: {
   url: string;
   alt_text?: string;
 }): Promise<CalendarMutationResult<PropertyImage>> {
-  const supabase = await requireAdmin();
+  const auth = await requireAdminOrError();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = auth.supabase;
   if (!input.property_id || !input.url) {
     return { ok: false, error: 'Nedostaju obavezna polja' };
   }
@@ -673,7 +732,9 @@ export async function propAddPropertyImage(input: {
 }
 
 export async function propDeletePropertyImage(id: string): Promise<CalendarMutationResult<{ id: string }>> {
-  const supabase = await requireAdmin();
+  const auth = await requireAdminOrError();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = auth.supabase;
   if (!id) return { ok: false, error: 'Nedostaje ID' };
   const { error } = await supabase.from('property_images').delete().eq('id', id);
   if (error) return { ok: false, error: error.message };
@@ -686,7 +747,9 @@ export async function propSetPropertyImageCover(input: {
   id: string;
   property_id: string;
 }): Promise<CalendarMutationResult<{ id: string; property_id: string }>> {
-  const supabase = await requireAdmin();
+  const auth = await requireAdminOrError();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = auth.supabase;
   if (!input.id || !input.property_id) return { ok: false, error: 'Nedostaju podaci' };
 
   await supabase.from('property_images').update({ is_cover: false }).eq('property_id', input.property_id);
@@ -699,7 +762,9 @@ export async function propSetPropertyImageCover(input: {
 }
 
 export async function propListGalleryImages(): Promise<CalendarMutationResult<GalleryImage[]>> {
-  const supabase = await requireAdmin();
+  const auth = await requireAdminOrError();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = auth.supabase;
   const { data, error } = await supabase
     .from('gallery_images')
     .select('*')
@@ -713,7 +778,9 @@ export async function propAddPropertyImagesBatch(input: {
   property_id: string;
   images: { url: string; alt_text?: string }[];
 }): Promise<CalendarMutationResult<PropertyImage[]>> {
-  const supabase = await requireAdmin();
+  const auth = await requireAdminOrError();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = auth.supabase;
   if (!input.property_id || !input.images?.length) {
     return { ok: false, error: 'Nedostaju obavezna polja' };
   }
@@ -765,7 +832,9 @@ export async function propUpdatePricing(input: {
   base_price: number;
   cleaning_fee: number;
 }): Promise<CalendarMutationResult<Property>> {
-  const supabase = await requireAdmin();
+  const auth = await requireAdminOrError();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = auth.supabase;
   if (!input.id) return { ok: false, error: 'Nedostaje ID' };
 
   const base_price = Number.isFinite(input.base_price) ? Math.max(0, input.base_price) : 0;

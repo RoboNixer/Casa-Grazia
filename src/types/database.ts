@@ -37,6 +37,7 @@ export interface Property {
   size_sqm: number;
   base_price: number;
   cleaning_fee: number;
+  min_nights: number;
   amenities: string[];
   address: string;
   latitude: number;

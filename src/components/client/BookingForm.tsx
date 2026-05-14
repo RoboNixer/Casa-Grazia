@@ -145,12 +145,19 @@ export default function BookingForm({
   const cleaningFee = selectedProperty?.cleaning_fee ?? 0;
   const totalPrice = accommodationCost + (nights > 0 ? cleaningFee : 0);
 
+  // ─── Minimum stay ──────────────────────────────────────────────────────
+  // Property-level min_nights is set in admin. The submit button stays
+  // disabled and we show an inline notice if the user picked a shorter stay,
+  // so they get the rule before they fill out anything else.
+  const minNights = Math.max(1, selectedProperty?.min_nights ?? 1);
+  const belowMinNights = nights > 0 && nights < minNights;
+
   // ─── Submission ────────────────────────────────────────────────────────
   const canSubmit =
     !!propertyId &&
     !!range.checkIn &&
     !!range.checkOut &&
-    nights > 0 &&
+    nights >= minNights &&
     numGuests >= 1;
 
   return (
@@ -243,13 +250,36 @@ export default function BookingForm({
               </p>
             </div>
           ) : (
-            <AvailabilityCalendar
-              bookedDates={bookedDates}
-              blockedDates={blockedDates}
-              todayStr={todayStr}
-              value={range}
-              onChange={setRange}
-            />
+            <>
+              {minNights > 1 && (
+                <div className="mb-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/70 px-4 py-3 flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 mt-0.5 text-emerald-700" />
+                  <p className="text-[13px] text-emerald-900">
+                    Minimalan broj noćenja:{' '}
+                    <span className="font-semibold">{minNights}</span>{' '}
+                    {minNights < 5 ? 'noći' : 'noći'}.
+                  </p>
+                </div>
+              )}
+              <AvailabilityCalendar
+                bookedDates={bookedDates}
+                blockedDates={blockedDates}
+                todayStr={todayStr}
+                value={range}
+                onChange={setRange}
+              />
+              {belowMinNights && (
+                <div className="mt-4 rounded-2xl bg-rose-50 border border-rose-200 px-4 py-3 flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 mt-0.5 text-rose-600" />
+                  <p className="text-[13px] text-rose-900">
+                    Odabrali ste <span className="font-semibold">{nights}</span>{' '}
+                    {nights === 1 ? 'noć' : 'noći'}, a minimum je{' '}
+                    <span className="font-semibold">{minNights}</span>. Molimo
+                    produžite boravak.
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           {/* Hidden inputs that submit to the server action */}
@@ -421,7 +451,11 @@ export default function BookingForm({
           </div>
 
           <div className="px-6 sm:px-7 py-5 bg-emerald-50/40 border-t border-emerald-900/[0.07]">
-            <SubmitButton canSubmit={canSubmit} />
+            <SubmitButton
+              canSubmit={canSubmit}
+              belowMinNights={belowMinNights}
+              minNights={minNights}
+            />
             <p className="text-center font-mono text-[10.5px] tracking-[0.2em] uppercase text-ink-faint mt-3.5">
               Potvrda obično unutar 24 sata
             </p>
@@ -434,20 +468,31 @@ export default function BookingForm({
 
 /* ──────────────────────────────────────────────────────────────────────── */
 
-function SubmitButton({ canSubmit }: { canSubmit: boolean }) {
+function SubmitButton({
+  canSubmit,
+  belowMinNights,
+  minNights,
+}: {
+  canSubmit: boolean;
+  belowMinNights: boolean;
+  minNights: number;
+}) {
   const { pending } = useFormStatus();
   const disabled = !canSubmit || pending;
+  const label = pending
+    ? 'Šaljem...'
+    : canSubmit
+      ? 'Pošalji zahtjev'
+      : belowMinNights
+        ? `Min. ${minNights} ${minNights === 1 ? 'noć' : 'noći'}`
+        : 'Odaberi datume';
   return (
     <button
       type="submit"
       disabled={disabled}
       className="group w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-full bg-ink text-white font-medium text-[15px] hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-ink"
     >
-      {pending
-        ? 'Šaljem...'
-        : canSubmit
-          ? 'Pošalji zahtjev'
-          : 'Odaberi datume'}
+      {label}
       <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
     </button>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus,
   Pencil,
@@ -44,6 +44,8 @@ const propertyTypeLabels: Record<string, string> = {
   house: 'Kuća',
   room: 'Soba',
 };
+
+const TOAST_AUTO_DISMISS_MS = 2500;
 
 export type PropertyModalState =
   | null
@@ -95,6 +97,12 @@ export default function PropertiesClient({
       document.documentElement.style.overflow = prevHtml;
     };
   }, [modal]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(null), TOAST_AUTO_DISMISS_MS);
+    return () => window.clearTimeout(id);
+  }, [toast]);
 
   const activeCount = properties.filter((p) => p.is_active).length;
   const inactiveCount = properties.length - activeCount;
@@ -181,7 +189,7 @@ export default function PropertiesClient({
         <div
           role="status"
           className={cn(
-            'fixed left-1/2 -translate-x-1/2 z-[2147483647] px-4 py-2.5 rounded-xl text-[13px] font-semibold text-white shadow-2xl ring-1 ring-white/10 pointer-events-none',
+            'fixed left-1/2 -translate-x-1/2 z-[2147483647] px-4 py-2.5 rounded-xl text-[13px] font-semibold text-white shadow-2xl ring-1 ring-white/10 pointer-events-none animate-fade-up',
             toast.kind === 'ok' ? 'bg-emerald-600' : 'bg-red-600',
           )}
           style={{ bottom: 'calc(env(safe-area-inset-bottom) + 90px)' }}
@@ -201,7 +209,7 @@ export default function PropertiesClient({
             isNew={modal.kind === 'new'}
             currencySymbol={currencySymbol}
             onClose={() => setModal(null)}
-            onSaved={(saved) => {
+            onSaved={(saved, wasNew) => {
               setProperties((prev) => {
                 const i = prev.findIndex((p) => p.id === saved.id);
                 if (i === -1) return [saved, ...prev];
@@ -209,8 +217,11 @@ export default function PropertiesClient({
                 next[i] = { ...next[i], ...saved };
                 return next;
               });
-              setToast({ kind: 'ok', msg: modal.kind === 'new' ? 'Nekretnina dodana' : 'Nekretnina spremljena' });
-              setModal({ kind: 'edit', id: saved.id });
+              setModal(null);
+              setToast({
+                kind: 'ok',
+                msg: wasNew ? 'Nekretnina dodana' : 'Nekretnina spremljena',
+              });
             }}
             onDeleted={(id) => {
               setProperties((prev) => prev.filter((p) => p.id !== id));
@@ -240,7 +251,7 @@ function PropertyCard({
   onDeleted: () => void;
   onToast: (t: { kind: 'ok' | 'err'; msg: string }) => void;
 }) {
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const cover = property.images?.find((i) => i.is_cover);
 
@@ -334,14 +345,30 @@ function PropertyCard({
           label={property.is_active ? 'Deaktiviraj' : 'Aktiviraj'}
           disabled={pending}
           onClick={() => {
-            startTransition(async () => {
-              const res = await propTogglePropertyActive({ id: property.id, is_active: property.is_active });
-              if (!res.ok) onToast({ kind: 'err', msg: res.error });
-              else {
-                onToggle(res.data.is_active);
-                onToast({ kind: 'ok', msg: res.data.is_active ? 'Nekretnina aktivirana' : 'Nekretnina deaktivirana' });
+            void (async () => {
+              setPending(true);
+              try {
+                const res = await propTogglePropertyActive({
+                  id: property.id,
+                  is_active: property.is_active,
+                });
+                if (!res.ok) onToast({ kind: 'err', msg: res.error });
+                else {
+                  onToggle(res.data.is_active);
+                  onToast({
+                    kind: 'ok',
+                    msg: res.data.is_active ? 'Nekretnina aktivirana' : 'Nekretnina deaktivirana',
+                  });
+                }
+              } catch (e) {
+                onToast({
+                  kind: 'err',
+                  msg: e instanceof Error && e.message ? e.message : 'Neočekivana greška',
+                });
+              } finally {
+                setPending(false);
               }
-            });
+            })();
           }}
         >
           {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : property.is_active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -352,11 +379,21 @@ function PropertyCard({
           disabled={pending}
           onClick={() => {
             if (!confirmDelete) return setConfirmDelete(true);
-            startTransition(async () => {
-              const res = await propDeleteProperty(property.id);
-              if (!res.ok) onToast({ kind: 'err', msg: res.error });
-              else onDeleted();
-            });
+            void (async () => {
+              setPending(true);
+              try {
+                const res = await propDeleteProperty(property.id);
+                if (!res.ok) onToast({ kind: 'err', msg: res.error });
+                else onDeleted();
+              } catch (e) {
+                onToast({
+                  kind: 'err',
+                  msg: e instanceof Error && e.message ? e.message : 'Neočekivana greška',
+                });
+              } finally {
+                setPending(false);
+              }
+            })();
           }}
         >
           <Trash2 className="w-4 h-4" />
@@ -494,11 +531,11 @@ function PropertyEditor({
   currencySymbol: string;
   isNew: boolean;
   onClose: () => void;
-  onSaved: (p: Property) => void;
+  onSaved: (p: Property, wasNew: boolean) => void;
   onDeleted: (id: string) => void;
   onToast: (t: { kind: 'ok' | 'err'; msg: string }) => void;
 }) {
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const [state, setState] = useState({
     name: property?.name || '',
     short_description: property?.short_description || '',
@@ -510,6 +547,7 @@ function PropertyEditor({
     size_sqm: String(property?.size_sqm ?? 0),
     base_price: String(property?.base_price ?? 0),
     cleaning_fee: String(property?.cleaning_fee ?? 0),
+    min_nights: String(property?.min_nights ?? 1),
     sort_order: String(property?.sort_order ?? 0),
     address: property?.address || '',
     latitude: String(property?.latitude ?? 0),
@@ -520,29 +558,40 @@ function PropertyEditor({
   const [images, setImages] = useState<PropertyImage[]>(property?.images || []);
 
   const save = () => {
-    startTransition(async () => {
-      const res = await propSaveProperty({
-        id: property?.id,
-        name: state.name,
-        short_description: state.short_description,
-        description: state.description,
-        property_type: state.property_type,
-        max_guests: Number(state.max_guests) || 1,
-        bedrooms: Number(state.bedrooms) || 0,
-        bathrooms: Number(state.bathrooms) || 0,
-        size_sqm: Number(state.size_sqm) || 0,
-        base_price: Number(state.base_price) || 0,
-        cleaning_fee: Number(state.cleaning_fee) || 0,
-        sort_order: Number(state.sort_order) || 0,
-        address: state.address,
-        latitude: Number(state.latitude) || 0,
-        longitude: Number(state.longitude) || 0,
-        amenities: state.amenities.split(',').map((a) => a.trim()).filter(Boolean),
-        is_active: state.is_active,
-      });
-      if (!res.ok) onToast({ kind: 'err', msg: res.error });
-      else onSaved({ ...res.data, images: images });
-    });
+    void (async () => {
+      setPending(true);
+      try {
+        const res = await propSaveProperty({
+          id: property?.id,
+          name: state.name,
+          short_description: state.short_description,
+          description: state.description,
+          property_type: state.property_type,
+          max_guests: Number(state.max_guests) || 1,
+          bedrooms: Number(state.bedrooms) || 0,
+          bathrooms: Number(state.bathrooms) || 0,
+          size_sqm: Number(state.size_sqm) || 0,
+          base_price: Number(state.base_price) || 0,
+          cleaning_fee: Number(state.cleaning_fee) || 0,
+          min_nights: Math.max(1, Number(state.min_nights) || 1),
+          sort_order: Number(state.sort_order) || 0,
+          address: state.address,
+          latitude: Number(state.latitude) || 0,
+          longitude: Number(state.longitude) || 0,
+          amenities: state.amenities.split(',').map((a) => a.trim()).filter(Boolean),
+          is_active: state.is_active,
+        });
+        if (!res.ok) onToast({ kind: 'err', msg: res.error });
+        else onSaved({ ...res.data, images: images }, isNew);
+      } catch (e) {
+        onToast({
+          kind: 'err',
+          msg: e instanceof Error && e.message ? e.message : 'Neočekivana greška',
+        });
+      } finally {
+        setPending(false);
+      }
+    })();
   };
 
   return (
@@ -564,6 +613,7 @@ function PropertyEditor({
           <Field label="Veličina (m²)" type="number" value={state.size_sqm} onChange={(v) => setState((s) => ({ ...s, size_sqm: v }))} />
           <Field label={`Osnovna cijena (${currencySymbol}/noć)`} type="number" value={state.base_price} onChange={(v) => setState((s) => ({ ...s, base_price: v }))} />
           <Field label={`Naknada čišćenja (${currencySymbol})`} type="number" value={state.cleaning_fee} onChange={(v) => setState((s) => ({ ...s, cleaning_fee: v }))} />
+          <Field label="Min. broj noćenja" type="number" value={state.min_nights} onChange={(v) => setState((s) => ({ ...s, min_nights: v }))} />
           <Field label="Redoslijed" type="number" value={state.sort_order} onChange={(v) => setState((s) => ({ ...s, sort_order: v }))} />
           <Field label="Adresa" value={state.address} onChange={(v) => setState((s) => ({ ...s, address: v }))} colSpan={3} />
           <Field label="Geografska širina" type="number" value={state.latitude} onChange={(v) => setState((s) => ({ ...s, latitude: v }))} />
@@ -595,12 +645,26 @@ function PropertyEditor({
                       {!img.is_cover && (
                         <button
                           type="button"
-                          onClick={() => startTransition(async () => {
-                            const res = await propSetPropertyImageCover({ id: img.id, property_id: property.id });
-                            if (!res.ok) return onToast({ kind: 'err', msg: res.error });
-                            setImages((prev) => prev.map((p) => ({ ...p, is_cover: p.id === img.id })));
-                            onToast({ kind: 'ok', msg: 'Postavljena naslovna slika' });
-                          })}
+                          onClick={() =>
+                            void (async () => {
+                              setPending(true);
+                              try {
+                                const res = await propSetPropertyImageCover({
+                                  id: img.id,
+                                  property_id: property.id,
+                                });
+                                if (!res.ok) return onToast({ kind: 'err', msg: res.error });
+                                setImages((prev) => prev.map((p) => ({ ...p, is_cover: p.id === img.id })));
+                                onToast({ kind: 'ok', msg: 'Postavljena naslovna slika' });
+                              } catch (e) {
+                                onToast({
+                                  kind: 'err',
+                                  msg: e instanceof Error && e.message ? e.message : 'Neočekivana greška',
+                                });
+                              } finally {
+                                setPending(false);
+                              }
+                            })()}
                           className="p-1.5 bg-slate-900/90 text-slate-300 hover:text-white rounded-lg ring-1 ring-white/15 active:scale-90 transition-all"
                         >
                           <Star className="w-3.5 h-3.5" />
@@ -608,12 +672,23 @@ function PropertyEditor({
                       )}
                       <button
                         type="button"
-                        onClick={() => startTransition(async () => {
-                          const res = await propDeletePropertyImage(img.id);
-                          if (!res.ok) return onToast({ kind: 'err', msg: res.error });
-                          setImages((prev) => prev.filter((p) => p.id !== img.id));
-                          onToast({ kind: 'ok', msg: 'Slika obrisana' });
-                        })}
+                        onClick={() =>
+                          void (async () => {
+                            setPending(true);
+                            try {
+                              const res = await propDeletePropertyImage(img.id);
+                              if (!res.ok) return onToast({ kind: 'err', msg: res.error });
+                              setImages((prev) => prev.filter((p) => p.id !== img.id));
+                              onToast({ kind: 'ok', msg: 'Slika obrisana' });
+                            } catch (e) {
+                              onToast({
+                                kind: 'err',
+                                msg: e instanceof Error && e.message ? e.message : 'Neočekivana greška',
+                              });
+                            } finally {
+                              setPending(false);
+                            }
+                          })()}
                         className="p-1.5 bg-slate-900/90 text-slate-300 hover:text-red-300 rounded-lg ring-1 ring-white/15 active:scale-90 transition-all"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -641,11 +716,22 @@ function PropertyEditor({
             <button
               type="button"
               className="h-11 px-4 text-[13px] font-semibold text-red-300 bg-red-500/10 rounded-xl hover:bg-red-500/20 transition-all"
-              onClick={() => startTransition(async () => {
-                const res = await propDeleteProperty(property.id);
-                if (!res.ok) return onToast({ kind: 'err', msg: res.error });
-                onDeleted(property.id);
-              })}
+              onClick={() =>
+                void (async () => {
+                  setPending(true);
+                  try {
+                    const res = await propDeleteProperty(property.id);
+                    if (!res.ok) return onToast({ kind: 'err', msg: res.error });
+                    onDeleted(property.id);
+                  } catch (e) {
+                    onToast({
+                      kind: 'err',
+                      msg: e instanceof Error && e.message ? e.message : 'Neočekivana greška',
+                    });
+                  } finally {
+                    setPending(false);
+                  }
+                })()}
             >
               Obriši
             </button>
@@ -736,59 +822,65 @@ function ImageAdder({
       setUploading(true);
       setProgress({ done: 0, total: valid.length });
 
-      // Upload all files to Supabase Storage in parallel.
-      const ts = Date.now();
-      const uploads = await Promise.all(
-        valid.map(async (file, i) => {
-          const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
-          const safeExt = ext || 'jpg';
-          const path = `${propertyId}/${ts}-${i}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`;
+      try {
+        // Upload all files to Supabase Storage in parallel.
+        const ts = Date.now();
+        const uploads = await Promise.all(
+          valid.map(async (file, i) => {
+            const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const safeExt = ext || 'jpg';
+            const path = `${propertyId}/${ts}-${i}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`;
 
-          const { error: upErr } = await supabase.storage
-            .from(PROPERTY_IMAGES_BUCKET)
-            .upload(path, file, {
-              cacheControl: '3600',
-              upsert: false,
-              contentType: file.type || 'image/jpeg',
-            });
+            const { error: upErr } = await supabase.storage
+              .from(PROPERTY_IMAGES_BUCKET)
+              .upload(path, file, {
+                cacheControl: '3600',
+                upsert: false,
+                contentType: file.type || 'image/jpeg',
+              });
 
-          setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+            setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
 
-          if (upErr) {
-            onToast({ kind: 'err', msg: `Upload greška: ${upErr.message}` });
-            return null;
-          }
+            if (upErr) {
+              onToast({ kind: 'err', msg: `Upload greška: ${upErr.message}` });
+              return null;
+            }
 
-          const { data: pub } = supabase.storage.from(PROPERTY_IMAGES_BUCKET).getPublicUrl(path);
-          return {
-            url: pub.publicUrl,
-            alt_text: propertyName || file.name.replace(/\.[^.]+$/, ''),
-          };
-        }),
-      );
+            const { data: pub } = supabase.storage.from(PROPERTY_IMAGES_BUCKET).getPublicUrl(path);
+            return {
+              url: pub.publicUrl,
+              alt_text: propertyName || file.name.replace(/\.[^.]+$/, ''),
+            };
+          }),
+        );
 
-      const successes = uploads.filter((u): u is { url: string; alt_text: string } => u !== null);
+        const successes = uploads.filter((u): u is { url: string; alt_text: string } => u !== null);
 
-      // One batched DB insert for everything that uploaded successfully.
-      if (successes.length > 0) {
-        const res = await propAddPropertyImagesBatch({
-          property_id: propertyId,
-          images: successes,
-        });
-        if (res.ok) {
-          for (const img of res.data) onAdded(img);
-          onToast({
-            kind: 'ok',
-            msg: res.data.length === 1 ? 'Slika dodana' : `${res.data.length} slika dodano`,
+        if (successes.length > 0) {
+          const res = await propAddPropertyImagesBatch({
+            property_id: propertyId,
+            images: successes,
           });
-        } else {
-          onToast({ kind: 'err', msg: res.error });
+          if (res.ok) {
+            for (const img of res.data) onAdded(img);
+            onToast({
+              kind: 'ok',
+              msg: res.data.length === 1 ? 'Slika dodana' : `${res.data.length} slika dodano`,
+            });
+          } else {
+            onToast({ kind: 'err', msg: res.error });
+          }
         }
+      } catch (e) {
+        onToast({
+          kind: 'err',
+          msg: e instanceof Error && e.message ? e.message : 'Neočekivana greška',
+        });
+      } finally {
+        setUploading(false);
+        setProgress(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
-
-      setUploading(false);
-      setProgress(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     },
     [onAdded, onToast, propertyId, propertyName],
   );
@@ -796,29 +888,41 @@ function ImageAdder({
   const loadGallery = useCallback(async () => {
     if (galleryLoaded || galleryLoading) return;
     setGalleryLoading(true);
-    const res = await propListGalleryImages();
-    setGalleryLoading(false);
-    if (!res.ok) return onToast({ kind: 'err', msg: res.error });
-    setGallery(res.data);
-    setGalleryLoaded(true);
+    try {
+      const res = await propListGalleryImages();
+      if (!res.ok) return onToast({ kind: 'err', msg: res.error });
+      setGallery(res.data);
+      setGalleryLoaded(true);
+    } catch (e) {
+      onToast({
+        kind: 'err',
+        msg: e instanceof Error && e.message ? e.message : 'Neočekivana greška',
+      });
+    } finally {
+      setGalleryLoading(false);
+    }
   }, [galleryLoaded, galleryLoading, onToast]);
-
-  useEffect(() => {
-    if (tab === 'gallery') loadGallery();
-  }, [tab, loadGallery]);
 
   const pickFromGallery = async (g: GalleryImage) => {
     if (existingSet.has(g.url) || pickingId) return;
     setPickingId(g.id);
-    const res = await propAddPropertyImage({
-      property_id: propertyId,
-      url: g.url,
-      alt_text: g.alt_text || propertyName,
-    });
-    setPickingId(null);
-    if (!res.ok) return onToast({ kind: 'err', msg: res.error });
-    onAdded(res.data);
-    onToast({ kind: 'ok', msg: 'Slika dodana iz galerije' });
+    try {
+      const res = await propAddPropertyImage({
+        property_id: propertyId,
+        url: g.url,
+        alt_text: g.alt_text || propertyName,
+      });
+      if (!res.ok) return onToast({ kind: 'err', msg: res.error });
+      onAdded(res.data);
+      onToast({ kind: 'ok', msg: 'Slika dodana iz galerije' });
+    } catch (e) {
+      onToast({
+        kind: 'err',
+        msg: e instanceof Error && e.message ? e.message : 'Neočekivana greška',
+      });
+    } finally {
+      setPickingId(null);
+    }
   };
 
   return (
@@ -826,7 +930,15 @@ function ImageAdder({
       {/* Tabs */}
       <div className="inline-flex p-1 rounded-xl bg-white/[0.04] ring-1 ring-white/[0.06]">
         <TabBtn active={tab === 'upload'} onClick={() => setTab('upload')} icon={Upload} label="Učitaj sa uređaja" />
-        <TabBtn active={tab === 'gallery'} onClick={() => setTab('gallery')} icon={Images} label="Iz galerije" />
+        <TabBtn
+          active={tab === 'gallery'}
+          onClick={() => {
+            setTab('gallery');
+            void loadGallery();
+          }}
+          icon={Images}
+          label="Iz galerije"
+        />
       </div>
 
       {tab === 'upload' && (

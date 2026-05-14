@@ -51,7 +51,7 @@ export async function submitBookingAction(formData: FormData) {
   // the form fields we already have.
   const { data: property } = await supabase
     .from('properties')
-    .select('id, name, base_price, cleaning_fee, max_guests')
+    .select('id, name, base_price, cleaning_fee, max_guests, min_nights')
     .eq('id', propertyId)
     .single();
 
@@ -64,6 +64,16 @@ export async function submitBookingAction(formData: FormData) {
       buildErrorRedirect(
         propertyId,
         `Maksimalan broj gostiju je ${property.max_guests}.`
+      )
+    );
+  }
+
+  const minNights = Math.max(1, property.min_nights ?? 1);
+  if (nights < minNights) {
+    redirect(
+      buildErrorRedirect(
+        propertyId,
+        `Minimalan broj noćenja za ovu nekretninu je ${minNights}.`
       )
     );
   }
