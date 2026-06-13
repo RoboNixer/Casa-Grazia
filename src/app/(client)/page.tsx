@@ -184,20 +184,20 @@ export default async function HomePage() {
               <div className="grid grid-cols-2 gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/villa/casa-grazia-1.jpg"
+                  src="/villa/gallery-01.jpg"
                   alt={t.home.about.imgTerrace}
                   className="rounded-2xl object-cover aspect-[4/5] w-full shadow-premium"
                 />
                 <div className="space-y-3 pt-10">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src="/villa/casa-grazia-2.png"
+                    src="/villa/gallery-02.jpg"
                     alt={t.home.about.imgPool}
                     className="rounded-2xl object-cover aspect-square w-full shadow-premium"
                   />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src="/villa/casa-grazia-4.jpg"
+                    src="/villa/gallery-03.jpg"
                     alt={t.home.about.imgCovered}
                     className="rounded-2xl object-cover aspect-[4/3] w-full shadow-premium"
                   />
@@ -344,7 +344,7 @@ export default async function HomePage() {
                 ) : (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
-                    src="/villa/casa-grazia-1.jpg"
+                    src="/villa/gallery-04.jpg"
                     alt={villaName}
                     className="w-full h-full object-cover"
                   />
