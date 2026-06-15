@@ -28,6 +28,9 @@ export function getEmailFrom(): string {
   return process.env.EMAIL_FROM || 'Acme <onboarding@resend.dev>';
 }
 
-export function getOwnerEmail(): string | null {
-  return process.env.OWNER_EMAIL || null;
+export function getOwnerEmail(): string[] | null {
+  const raw = process.env.OWNER_EMAIL;
+  if (!raw) return null;
+  const emails = raw.split(',').map((e) => e.trim()).filter(Boolean);
+  return emails.length > 0 ? emails : null;
 }
